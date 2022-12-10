@@ -13,6 +13,7 @@
 #include<unistd.h>
 #include<string.h>
 #include <sys/sem.h>
+#include <iostream>
 
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
@@ -34,11 +35,17 @@ int SignalSem(int sem);
 
 int main(int argc, char **argv) {
     printf("CONSUMER LAUNCHED...\n");
+    union semun
+    {
+        int val;
+        struct semid_ds *buf;
+        ushort array [1];
+    } sem_attr;
+
     key_t shm_key = 0x1233333; //ftok("shmfile",65);
 
     int shmid = 0, sleep_time;
     ProductPrice *shmp;
-    char *bufptr;
 
     //TODO: write code to handle arguments here ie the product name, price and sleep interval
 
@@ -53,88 +60,110 @@ int main(int argc, char **argv) {
         perror("Shared memory attach");
         return 1;
     }
+
+    if((binary_sem = semget(BIN_SEM_KEY, 1, IPC_CREAT | 0666)) == -1){
+        perror("Binary Sem Creation: ");
+        exit(1);
+    }
+    sem_attr.val = 1;        // unlocked
+    if (semctl (binary_sem, 0, SETVAL, sem_attr) == -1) {
+        perror ("binary sem SETVAL"); exit (1);
+    }
+
+    if((empty_sem = semget(EMPTY_KEY, 1, IPC_CREAT | 0666))==-1){
+        perror("Empty Sem Creation: ");
+        exit(1);
+    }
+    sem_attr.val = MAX_BUFF;        // unlocked
+    if (semctl (empty_sem, 0, SETVAL, sem_attr) == -1) {
+        perror ("empty sem SETVAL"); exit (1);
+    }
+
+    if((full_sem = semget(FULL_KEY, 1, IPC_CREAT  | 0666))==-1){
+        perror("Full Sem Creation: ");
+        _exit(1);
+    }
+    sem_attr.val = 0;        // unlocked
+    if (semctl (full_sem, 0, SETVAL, sem_attr) == -1) {
+        perror ("full sem SETVAL"); exit (1);
+    }
+    //shmp->price = 1;
     CONSUME(shmp,2,1);
 
 }
 
 void CONSUME(ProductPrice *shmp,int sleep_T,int buffer_S) {
     int sleep_time = sleep_T;
-
+    time_t timetoday;
+    time(&timetoday);
     int retval;
     // int bin_semid = binary_sem,empty_semid = empty_sem,full_semid = full_sem;
 
     while (true) {
-        //binary semaphore to lock the shared memory
-        retval = WaitSem(full_sem,FULL_KEY);
+         retval = WaitSem(full_sem, FULL_KEY);
         if (retval == -1) {
             perror("Semaphore Locked: ");
             return;
         }
-        retval = WaitSem(binary_sem,BIN_SEM_KEY);
+        retval = WaitSem(binary_sem, BIN_SEM_KEY);
         if (retval == -1) {
             perror("Semaphore Locked: ");
             return;
         }
 
         //TODO: place here code to generate number from normal distribution
-        for(int i =0;i<buffer_S;i++)
-            printf("%d \n",shmp->price);
+        for (int i = 0; i < buffer_S; i++) {
+        printf("price: %d\tproduct: %s \n", shmp->price,shmp->name);
+    }
 
         retval = SignalSem(binary_sem);
         if (retval == -1) {
             perror("Semaphore Locked\n");
             return;
         }
-//        retval = SignalSem(empty_sem);
-//        if (retval == -1) {
-//            perror("Semaphore Locked\n");
-//            return;
-//        }
-        sleep(sleep_time);
-        printf("out of sleep\n");
+        retval = SignalSem(empty_sem);
+        if (retval == -1) {
+            perror("Semaphore Locked\n");
+            return;
+        }
+       // sleep(sleep_time);
+        printf("no sleep\n");
     }
 
 }
 
-//im getting in
-int WaitSem(int sem,key_t sem_key){
-    struct sembuf sem_buf;
-    int retval,semnum;
+int WaitSem(int sem, key_t sem_key) {
+    struct sembuf sem_buf{};
+    sem_buf.sem_num = 0;
+    sem_buf.sem_flg = 0;
+    sem_buf.sem_op = 0;
+    int retval;
     int semaphore = sem;
-//    if(sem == binary_sem)
-//        semnum = 1;
-//    else if(sem == empty_sem)
-//        semnum = MAX_BUFF;
-//    else
-//        semnum = 0;
 
-    if (sem >= 0) {
-        printf("Trying to fetch binary semaphore on shared memory\n");
-        sem_buf.sem_op = 1;
-        sem_buf.sem_flg = 0;
-//        sem_buf.sem_num = semnum;
-        retval = semop(semaphore, &sem_buf, 1);
-    } else if (errno == EEXIST) {
-        int ready = 0;
-        printf("Already other process got the binary semaphore..waiting for resource\n");
-        semaphore = semget(sem_key, 1, 0);
-//        sem_buf.sem_num = 0;
-        sem_buf.sem_op = 0;
-        sem_buf.sem_flg = SEM_UNDO;
-        retval = semop(semaphore, &sem_buf, 1);
-    }
-//    sem_buf.sem_num = 0;
+    union semun {
+        int val;
+        struct semid_ds *buf;
+        ushort *array;
+    } arg;
+    int sem_num= semctl(semaphore, 0, GETVAL, arg);
+
+    // sem_buf.sem_num = sem_num;
     sem_buf.sem_op = -1; /* Allocating the resources */
-    sem_buf.sem_flg = SEM_UNDO;
+//    sem_buf.sem_flg = SEM_UNDO;
     retval = semop(semaphore, &sem_buf, 1);
 
     return retval;
 }
 
 //im getting out
-int SignalSem(int sem){
+int SignalSem(int sem) {
     printf("Releasing the resource\n");
-    struct sembuf sem_buf;
+
+    struct sembuf sem_buf{};
+    sem_buf.sem_num = 0;
+    sem_buf.sem_flg = 0;
+    sem_buf.sem_op = 0;
+
     sem_buf.sem_op = 1;
     int retval = semop(sem, &sem_buf, 1);
     return retval;
