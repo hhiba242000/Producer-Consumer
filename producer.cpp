@@ -10,7 +10,9 @@
 #include <sys/sem.h>
 #include <cstdlib>
 #include <ctime>
+#include <cstring>
 #include <iostream>
+#include <random>
 
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
@@ -22,17 +24,19 @@ int empty_sem;
 int full_sem ;
 
 typedef struct shmseg {
-    int price = 1;
-    std::string name;
+    double price ;
+    char name[10];
 } ProductPrice;
 
 timespec timespec{};
 
-void PRODUCE(ProductPrice *shmp,int sleep_time);
+void PRODUCE(ProductPrice *shmp,int sleep_time,char* product_name,double mean,double deviation);
 
 int WaitSem(int sem, key_t sem_key);
 
 int SignalSem(int sem);
+
+double GeneratePrice(double mean, double deviation);
 
 int main(int argc, char **argv) {
     printf("PRODUCER LAUNCHED...\n");
@@ -49,7 +53,10 @@ int main(int argc, char **argv) {
     ProductPrice *shmp;
 
     //TODO: write code to handle arguments here ie the product name, price and sleep interval
-    sleep_time = 2;
+    sleep_time = atoi(argv[1]); product_name = argv[2];
+    double mean =  atof(argv[3]),deviation =  atof(argv[4]);
+
+    printf("%d %s\n",sleep_time,product_name);
 
     shmid = shmget(shm_key, sizeof(ProductPrice), 0644 | IPC_CREAT);
     if (shmid == -1) {
@@ -89,17 +96,19 @@ int main(int argc, char **argv) {
     if (semctl (full_sem, 0, SETVAL, sem_attr) == -1) {
         perror ("full sem SETVAL"); exit (1);
     }
-    PRODUCE(shmp, sleep_time);
+    PRODUCE(shmp, sleep_time,product_name,mean,deviation);
 
 }
 
-void PRODUCE(ProductPrice *shmp,int sleep_T) {
+void PRODUCE(ProductPrice *shmp,int sleep_T,char* product_N,double mean,double deviation) {
     int sleep_time = sleep_T;
     int retval;
     time_t timetoday;
     time(&timetoday);
+    double price = 0.0;
     char* s;
     while (true) {
+        price = GeneratePrice(mean,deviation);
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
@@ -112,8 +121,8 @@ void PRODUCE(ProductPrice *shmp,int sleep_T) {
         }
 
         //TODO: place here code to generate number from normal distribution
-
-        shmp->price += 1;
+        shmp->price = price;
+        strcpy(shmp->name,product_N) ;
 
         retval = SignalSem(binary_sem);
         if (retval == -1) {
@@ -128,6 +137,13 @@ void PRODUCE(ProductPrice *shmp,int sleep_T) {
         sleep(sleep_time);
         printf("out of sleep\n");
     }
+}
+
+double GeneratePrice(double mean, double deviation) {
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(mean,deviation);
+    double number = distribution(generator);
+    return number;
 }
 
 //im getting in
