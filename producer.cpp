@@ -22,15 +22,17 @@ key_t FULL_KEY = 163;//ftok("fullsem",63);
 int binary_sem ;
 int empty_sem;
 int full_sem ;
+int read_idx,written_idx;
 
 typedef struct shmseg {
     double price ;
     char name[10];
 } ProductPrice;
 
+
 timespec timespec{};
 
-void PRODUCE(ProductPrice *shmp,int sleep_time,char* product_name,double mean,double deviation);
+void PRODUCE(ProductPrice *shmp,int sleep_time,char* product_name,double mean,double deviation,int size);
 
 int WaitSem(int sem, key_t sem_key);
 
@@ -48,17 +50,21 @@ int main(int argc, char **argv) {
     } sem_attr;
 
     key_t shm_key = 0x1233333; //ftok("shmfile",65);
-    int shmid = 0, sleep_time;
+    int shmid = 0, sleep_time,size;
     char* product_name;
     ProductPrice *shmp;
+    read_idx = written_idx = 0;
+
 
     //TODO: write code to handle arguments here ie the product name, price and sleep interval
     sleep_time = atoi(argv[1]); product_name = argv[2];
     double mean =  atof(argv[3]),deviation =  atof(argv[4]);
+    size = atoi(argv[5]);
+    ProductPrice buff_array[size];
 
-    printf("%d %s\n",sleep_time,product_name);
+    printf("%d %s %d\n",sleep_time,product_name,size);
 
-    shmid = shmget(shm_key, sizeof(ProductPrice), 0644 | IPC_CREAT);
+    shmid = shmget(shm_key, sizeof(shmp)*size, IPC_CREAT|0644);
     if (shmid == -1) {
         perror("Shared memory");
         return 1;
@@ -83,7 +89,7 @@ int main(int argc, char **argv) {
         perror("Empty Sem Creation: ");
         exit(1);
     }
-    sem_attr.val = MAX_BUFF;        // unlocked
+    sem_attr.val = size;        // unlocked
     if (semctl (empty_sem, 0, SETVAL, sem_attr) == -1) {
         perror ("empty sem SETVAL"); exit (1);
     }
@@ -96,13 +102,14 @@ int main(int argc, char **argv) {
     if (semctl (full_sem, 0, SETVAL, sem_attr) == -1) {
         perror ("full sem SETVAL"); exit (1);
     }
-    PRODUCE(shmp, sleep_time,product_name,mean,deviation);
+    PRODUCE(shmp, sleep_time,product_name,mean,deviation,size);
 
 }
 
-void PRODUCE(ProductPrice *shmp,int sleep_T,char* product_N,double mean,double deviation) {
+void PRODUCE(ProductPrice *aShmp,int sleep_T,char* product_N,double mean,double deviation,int size) {
     int sleep_time = sleep_T;
-    int retval;
+    int retval,offset = written_idx;
+    ProductPrice * shmp = aShmp;
     time_t timetoday;
     time(&timetoday);
     double price = 0.0;
@@ -134,6 +141,9 @@ void PRODUCE(ProductPrice *shmp,int sleep_T,char* product_N,double mean,double d
             perror("FULL Semaphore Locked\n");
             return;
         }
+        written_idx++;
+        written_idx = written_idx % size;
+        shmp=aShmp+(written_idx*sizeof(ProductPrice*));
         sleep(sleep_time);
         printf("out of sleep\n");
     }
