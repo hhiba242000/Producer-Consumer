@@ -55,7 +55,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/home/hayam/Desktop/ProducerConsumer/cmake-build-debug"
+			"value" : "/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -543,7 +543,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/home/hayam/Desktop/ProducerConsumer/cmake-build-debug/CMakeFiles/pkgRedirects"
+			"value" : "/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug/CMakeFiles/pkgRedirects"
 		},
 		{
 			"name" : "CMAKE_GENERATOR",
@@ -603,7 +603,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "/home/hayam/Desktop/ProducerConsumer"
+			"value" : "/home/hayam/Desktop/new laptop/ProducerConsumer"
 		},
 		{
 			"name" : "CMAKE_INSTALL_PREFIX",
@@ -1135,7 +1135,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/home/hayam/Desktop/ProducerConsumer/cmake-build-debug"
+			"value" : "/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug"
 		},
 		{
 			"name" : "ProducerConsumer_IS_TOP_LEVEL",
@@ -1159,7 +1159,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "/home/hayam/Desktop/ProducerConsumer"
+			"value" : "/home/hayam/Desktop/new laptop/ProducerConsumer"
 		},
 		{
 			"name" : "_CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED",

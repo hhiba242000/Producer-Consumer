@@ -1,4 +1,4 @@
-/home/hayam/Desktop/ProducerConsumer/cmake-build-debug/CMakeFiles/Consumer.dir
-/home/hayam/Desktop/ProducerConsumer/cmake-build-debug/CMakeFiles/Producer.dir
-/home/hayam/Desktop/ProducerConsumer/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/hayam/Desktop/ProducerConsumer/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug/CMakeFiles/Consumer.dir
+/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug/CMakeFiles/Producer.dir
+/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/hayam/Desktop/new laptop/ProducerConsumer/cmake-build-debug/CMakeFiles/rebuild_cache.dir
