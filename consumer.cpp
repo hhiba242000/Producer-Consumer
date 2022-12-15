@@ -142,10 +142,23 @@ void CONSUME(ProductPrice *aShmp, int size) {
             perror("FULL Semaphore Locked\n");
             return;
         }
+        printf("\e[1;1H\e[2J");
+        printf("+-------------------------------------+\n");
+        printf("| Currency\t|  Price  |  AvgPrice |\n");
+        printf("+-------------------------------------+\n");
+
+        // TODO: Print ALL commodities.
+
+        // for (int i=0; i<=read_idx ; i++) {
+        //     PrintTable(shmp + (i * sizeof(ProductPrice *)));
+        // }
+        PrintTable(temp);
+        printf("+-------------------------------------+\n");
         read_idx++;
         read_idx = read_idx % size;
         shmp = aShmp + (read_idx * sizeof(ProductPrice *));
-        PrintTable(temp);
+
+
     }
 }
 
@@ -160,26 +173,83 @@ void PrintTable(ProductPrice *pShmseg) {
         readings->emplace_back(pShmseg->price);
     }
     double sum = 0.0;
-    for (int i = 0; i < readings->size() - 1; i++) {
-        sum += readings->at(i);
-    }
+    int flag=0;
+    if(readings->size()==1)
+        sum = readings->at(0);
     if (readings->size() == 5) {
         readings->erase(readings->begin());
-    } else if (readings->size() == 0)
+    }
+    for (int i = 0; i < readings->size() - 1; i++) {
+        sum += readings->at(i);
+
+        if(i==readings->size()-1)
+            {
+            if(readings->size()==1)
+            {
+                flag=2;
+                continue;
+                }
+            if(readings->at(i-1)<readings->at(i))
+                flag=2;
+            else if(readings->at(i-1)>readings->at(i))
+                flag=1;
+            else 
+                flag=0;
+            }
+         
+            
+        } 
+    if (readings->size() == 0)
         sum = 0.0;
     else
         sum = sum / (readings->size());
     //f("product: %s price: %lf avg: %lf\n", pShmseg->name, pShmseg->price, sum);
-    printf("\e[1;1H\e[2J");
-        printf("+-------------------------------------+\n");
-        printf("| Currency\t|  Price  |  AvgPrice |\n");
-        printf("+-------------------------------------+\n");
-        if(strlen(pShmseg->name) < 8)
-            printf("| %s\t\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
-        else
-            printf("| %s\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
+    // printf("\e[1;1H\e[2J");
+    // printf("+-------------------------------------+\n");
+    // printf("| Currency\t|  Price  |  AvgPrice |\n");
+    // printf("+-------------------------------------+\n");
+   // if(readings->at(3)<readings->at(4)&& readings->at(3)!=0){
 
-        printf("+-------------------------------------+\n");
+    // TODO: Check the previous reading for increment or decrement
+
+    if(flag==2)
+        {
+            if(strlen(pShmseg->name) < 8)
+            printf("| %s\t\t| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m |\n", pShmseg->name, pShmseg->price, sum);
+        else
+            printf("| %s\t| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m |\n", pShmseg->name, pShmseg->price, sum);
+            }
+    else if(flag==1)
+        {
+            if(strlen(pShmseg->name) < 8)
+            printf("| %s\t\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m |\n", pShmseg->name, pShmseg->price, sum);
+        else
+            printf("| %s\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m |\n", pShmseg->name, pShmseg->price, sum);
+            }
+    else
+        {
+            if(strlen(pShmseg->name) < 8)
+            printf("| %s\t\t| \033[0;34m%7.2f\033[0m |  \033[0;34m%7.2f\033[0m  |\n", pShmseg->name, pShmseg->price, sum);
+        else
+            printf("| %s\t| \033[0;34m%7.2f\033[0m |  \033[0;34m%7.2f\033[0m  |\n", pShmseg->name, pShmseg->price, sum);
+            }
+
+
+        //         }
+        // else if(readings->at(3)>readings->at(4)){
+        //     if(strlen(pShmseg->name) < 8)
+        //         printf("| %s\t\t| \033[0;31m%7.2f↓\033[0m |  %7.2f↓  |\n", pShmseg->name, pShmseg->price, sum);
+        //     else
+        //         printf("| %s\t| %7.2f↓ |  %7.2f↓  |\n", pShmseg->name, pShmseg->price, sum);
+        // }
+        // else{
+        //     if(strlen(pShmseg->name) < 8)
+        //         printf("| %s\t\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
+        //     else
+        //         printf("| %s\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
+        // }
+
+    // printf("+-------------------------------------+\n");
 
 
 }
