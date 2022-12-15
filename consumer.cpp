@@ -180,23 +180,7 @@ void PrintTable(ProductPrice *pShmseg) {
         readings->erase(readings->begin());
     }
     for (int i = 0; i < readings->size() - 1; i++) {
-        sum += readings->at(i);
-
-        if(i==readings->size()-1)
-            {
-            if(readings->size()==1)
-            {
-                flag=2;
-                continue;
-                }
-            if(readings->at(i-1)<readings->at(i))
-                flag=2;
-            else if(readings->at(i-1)>readings->at(i))
-                flag=1;
-            else 
-                flag=0;
-            }
-         
+        sum += readings->at(i); 
             
         } 
     if (readings->size() == 0)
@@ -211,7 +195,22 @@ void PrintTable(ProductPrice *pShmseg) {
    // if(readings->at(3)<readings->at(4)&& readings->at(3)!=0){
 
     // TODO: Check the previous reading for increment or decrement
+    if(readings->size()==1)
+    {
+        flag=2;
+        
+        }
+        else
 
+        {   
+            int x=readings->size()-1;
+            if(readings->at(x-1)<readings->at(x))
+                flag=2;
+            else if(readings->at(x-1)>readings->at(x))
+                flag=1;
+            else 
+                flag=0;
+            }
     if(flag==2)
         {
             if(strlen(pShmseg->name) < 8)

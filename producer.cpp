@@ -29,6 +29,18 @@ typedef struct shmseg {
     char name[10];
 } ProductPrice;
 
+class Generator{
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution;
+public:
+    Generator(double mean, double stddev): distribution(mean, stddev){}
+    double get(){
+        generator = std::default_random_engine(time(0));
+
+        return distribution(generator);
+
+    }
+};
 
 timespec timespec{};
 
@@ -115,7 +127,9 @@ void PRODUCE(ProductPrice *aShmp,int sleep_T,char* product_N,double mean,double 
     double price = 0.0;
     char* s;
     while (true) {
-        price = GeneratePrice(mean,deviation);
+        //price = GeneratePrice(mean,deviation);
+        Generator generator(mean,deviation);
+        price = generator.get();
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
