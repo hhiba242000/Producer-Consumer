@@ -57,8 +57,8 @@ int main(int argc, char **argv) {
 
 
     //TODO: write code to handle arguments here ie the product name, price and sleep interval
-    sleep_time = atoi(argv[1]); product_name = argv[2];
-    double mean =  atof(argv[3]),deviation =  atof(argv[4]);
+    sleep_time = atoi(argv[4]); product_name = argv[1];
+    double mean =  atof(argv[2]),deviation =  atof(argv[3]);
     size = atoi(argv[5]);
     ProductPrice buff_array[size];
 

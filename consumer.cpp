@@ -169,7 +169,19 @@ void PrintTable(ProductPrice *pShmseg) {
         sum = 0.0;
     else
         sum = sum / (readings->size());
-    printf("product: %s price: %lf avg: %lf\n", pShmseg->name, pShmseg->price, sum);
+    //f("product: %s price: %lf avg: %lf\n", pShmseg->name, pShmseg->price, sum);
+    printf("\e[1;1H\e[2J");
+        printf("+-------------------------------------+\n");
+        printf("| Currency\t|  Price  |  AvgPrice |\n");
+        printf("+-------------------------------------+\n");
+        if(strlen(pShmseg->name) < 8)
+            printf("| %s\t\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
+        else
+            printf("| %s\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
+
+        printf("+-------------------------------------+\n");
+
+
 }
 
 //im getting in
