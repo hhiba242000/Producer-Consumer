@@ -214,21 +214,21 @@ void PrintTable(ProductPrice *pShmseg) {
             }
     if(flag==2)
         {
-            if(strlen(pShmseg->name) < 8)
+            if(strlen(pShmseg->name) < 5)
             printf("| %s\t\t| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m |\n", pShmseg->name, pShmseg->price, sum);
         else
             printf("| %s\t| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m |\n", pShmseg->name, pShmseg->price, sum);
             }
     else if(flag==1)
         {
-            if(strlen(pShmseg->name) < 8)
+            if(strlen(pShmseg->name) < 5)
             printf("| %s\t\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m |\n", pShmseg->name, pShmseg->price, sum);
         else
             printf("| %s\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m |\n", pShmseg->name, pShmseg->price, sum);
             }
     else
         {
-            if(strlen(pShmseg->name) < 8)
+            if(strlen(pShmseg->name) < 5)
             printf("| %s\t\t| \033[0;34m%7.2f\033[0m |  \033[0;34m%7.2f\033[0m  |\n", pShmseg->name, pShmseg->price, sum);
         else
             printf("| %s\t| \033[0;34m%7.2f\033[0m |  \033[0;34m%7.2f\033[0m  |\n", pShmseg->name, pShmseg->price, sum);

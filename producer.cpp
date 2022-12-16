@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     ProductPrice buff_array[size];
 
     printf("%d %s %d\n",sleep_time,product_name,size);
-    shmid = shmget(shm_key, sizeof(int), IPC_CREAT|0644);
+    shmid = shmget(shm_key+0x01, sizeof(int), IPC_CREAT|0644);
     if (shmid == -1) {
         perror("Shared memory");
         return 1;
