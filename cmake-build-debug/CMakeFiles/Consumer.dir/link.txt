@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/Consumer.dir/consumer.cpp.o -o Consumer 

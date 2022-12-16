@@ -58,8 +58,8 @@
 	"kind" : "codemodel",
 	"paths" : 
 	{
-		"build" : "/home/hayam/Desktop/ProducerConsumer/cmake-build-debug",
-		"source" : "/home/hayam/Desktop/ProducerConsumer"
+		"build" : "/home/hayam/Desktop/OS/Producer-Consumer/cmake-build-debug",
+		"source" : "/home/hayam/Desktop/OS/Producer-Consumer"
 	},
 	"version" : 
 	{
