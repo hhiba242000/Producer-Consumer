@@ -1,4 +1,3 @@
 all:
-	g++ -o consumer consumer.cpp -lpthread
-	g++ -o producer producer.cpp -lpthread
-	
+	g++ -o consumer consumer.cpp
+	g++ -o producer producer.cpp

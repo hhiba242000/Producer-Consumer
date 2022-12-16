@@ -16,6 +16,7 @@
 #include <queue>
 #include <unordered_map>
 #include <cstring>
+#include <map>
 
 std::string commodities[] = {"ALUMINIUM", "COPPER", "COTTON", "CRUDEOIL", "GOLD", "LEAD", "MENTHAOIL", "NATURALGAS",
                              "NICKEL", "SILVER", "ZINC"};
@@ -34,7 +35,7 @@ std::unordered_map<std::string, std::vector<double> *> readings_map;
 typedef struct shmseg {
     double price;
     char name[10];
-    bool isUpdated=true; 
+    bool isUpdated = true;
 } ProductPrice;
 
 timespec timespec{};
@@ -46,6 +47,10 @@ int WaitSem(int sem, key_t sem_key);
 int SignalSem(int sem);
 
 void PrintTable(ProductPrice *pShmseg);
+
+void InsertTable(ProductPrice *pShmseg);
+
+void PrintTable();
 
 int main(int argc, char **argv) {
     printf("CONSUMER LAUNCHED...\n");
@@ -113,9 +118,10 @@ void CONSUME(ProductPrice *aShmp, int size) {
     int retval;
     time_t timetoday;
     time(&timetoday);
-    char *s;
+    double dummy_val = 0.0;
     ProductPrice *shmp = aShmp;
     ProductPrice *temp = new ProductPrice;
+
     while (true) {
         retval = WaitSem(full_sem, EMPTY_KEY);
         if (retval == -1) {
@@ -128,10 +134,8 @@ void CONSUME(ProductPrice *aShmp, int size) {
             return;
         }
 
-        //TODO: place here code to generate number from normal distribution
         strcpy(temp->name, shmp->name);
         temp->price = shmp->price;
-        shmp->isUpdated = true;
 
         retval = SignalSem(binary_sem);
         if (retval == -1) {
@@ -143,18 +147,14 @@ void CONSUME(ProductPrice *aShmp, int size) {
             perror("FULL Semaphore Locked\n");
             return;
         }
+
         printf("\e[1;1H\e[2J");
-        printf("+-------------------------------------+\n");
+        printf("+--------------------------------------+\n");
         printf("| Currency\t|  Price  |  AvgPrice |\n");
-        printf("+-------------------------------------+\n");
+        printf("+--------------------------------------+\n");
+        InsertTable(temp);
+        PrintTable();
 
-        // TODO: Print ALL commodities.
-
-        // for (int i=0; i<=read_idx ; i++) {
-        //     PrintTable(shmp + (i * sizeof(ProductPrice *)));
-        // }
-        PrintTable(temp);
-        printf("+-------------------------------------+\n");
         read_idx++;
         read_idx = read_idx % size;
         shmp = aShmp + (read_idx * sizeof(ProductPrice *));
@@ -163,7 +163,60 @@ void CONSUME(ProductPrice *aShmp, int size) {
     }
 }
 
-void PrintTable(ProductPrice *pShmseg) {
+void PrintTable() {
+    std::vector<double> *readings;
+    double sum = 0.0;
+    int flag = 0, total;
+    std::string name;
+    double price , avg;
+    for (auto s: commodities) {
+        name= s;
+        if (readings_map.find(s.c_str()) == readings_map.end()) {
+        price = 0.0; avg = 0.0;
+        flag=0;
+        }
+        else{
+            readings = readings_map.at(s);
+            sum = 0.0;
+            flag= 0,total = 0.0;
+            total = readings->size();
+            price = readings->at(total-1);
+            for (int i = 0; i < total; i++) {
+                sum += readings->at(i);
+            }
+            avg = sum / total;
+            if (readings->size() == 1) {
+                flag = 2;
+
+            } else {
+                int x = total - 1;
+                if (readings->at(x - 1) < readings->at(x))
+                    flag = 2;
+                else if (readings->at(x - 1) > readings->at(x))
+                    flag = 1;
+                else
+                    flag = 0;
+            }
+        }
+
+
+        // TODO: Check the previous reading for increment or decrement
+        //red 31  green 32   blue 34
+        if (flag == 2) {
+                printf("| %-13s| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m  |\n", name.c_str(), price,
+                       avg);
+        } else if (flag == 1) {
+                printf("| %-13s\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m  |\n", name.c_str(), price,
+                       avg);
+        } else {
+                printf("| %-13s\t| \033[0;34m%7.2f\033[0m|  \033[0;34m%7.2f\033[0m  |\n", name.c_str(), price,
+                       avg);
+        }
+        printf("+--------------------------------------+\n");
+    }
+}
+
+void InsertTable(ProductPrice *pShmseg) {
     std::vector<double> *readings;
     if (readings_map.find(pShmseg->name) == readings_map.end()) {
         readings = new std::vector<double>;
@@ -173,86 +226,10 @@ void PrintTable(ProductPrice *pShmseg) {
         readings = readings_map.at(pShmseg->name);
         readings->emplace_back(pShmseg->price);
     }
-    double sum = 0.0;
-    int flag=0;
-    if(readings->size()==1)
-        sum = readings->at(0);
-    if (readings->size() == 5) {
+    if (readings->size() > 5)
         readings->erase(readings->begin());
-    }
-    for (int i = 0; i < readings->size() - 1; i++) {
-        sum += readings->at(i); 
-            
-        } 
-    if (readings->size() == 0)
-        sum = 0.0;
-    else
-        sum = sum / (readings->size());
-    //f("product: %s price: %lf avg: %lf\n", pShmseg->name, pShmseg->price, sum);
-    // printf("\e[1;1H\e[2J");
-    // printf("+-------------------------------------+\n");
-    // printf("| Currency\t|  Price  |  AvgPrice |\n");
-    // printf("+-------------------------------------+\n");
-   // if(readings->at(3)<readings->at(4)&& readings->at(3)!=0){
-
-    // TODO: Check the previous reading for increment or decrement
-    if(readings->size()==1)
-    {
-        flag=2;
-        
-        }
-        else
-
-        {   
-            int x=readings->size()-1;
-            if(readings->at(x-1)<readings->at(x))
-                flag=2;
-            else if(readings->at(x-1)>readings->at(x))
-                flag=1;
-            else 
-                flag=0;
-            }
-    if(flag==2)
-        {
-            if(strlen(pShmseg->name) < 8)
-            printf("| %s\t\t| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m |\n", pShmseg->name, pShmseg->price, sum);
-        else
-            printf("| %s\t| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m |\n", pShmseg->name, pShmseg->price, sum);
-            }
-    else if(flag==1)
-        {
-            if(strlen(pShmseg->name) < 8)
-            printf("| %s\t\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m |\n", pShmseg->name, pShmseg->price, sum);
-        else
-            printf("| %s\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m |\n", pShmseg->name, pShmseg->price, sum);
-            }
-    else
-        {
-            if(strlen(pShmseg->name) < 8)
-            printf("| %s\t\t| \033[0;34m%7.2f\033[0m |  \033[0;34m%7.2f\033[0m  |\n", pShmseg->name, pShmseg->price, sum);
-        else
-            printf("| %s\t| \033[0;34m%7.2f\033[0m |  \033[0;34m%7.2f\033[0m  |\n", pShmseg->name, pShmseg->price, sum);
-            }
-
-
-        //         }
-        // else if(readings->at(3)>readings->at(4)){
-        //     if(strlen(pShmseg->name) < 8)
-        //         printf("| %s\t\t| \033[0;31m%7.2f↓\033[0m |  %7.2f↓  |\n", pShmseg->name, pShmseg->price, sum);
-        //     else
-        //         printf("| %s\t| %7.2f↓ |  %7.2f↓  |\n", pShmseg->name, pShmseg->price, sum);
-        // }
-        // else{
-        //     if(strlen(pShmseg->name) < 8)
-        //         printf("| %s\t\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
-        //     else
-        //         printf("| %s\t| %7.2f |  %7.2f  |\n", pShmseg->name, pShmseg->price, sum);
-        // }
-
-    // printf("+-------------------------------------+\n");
-
-
 }
+
 
 //im getting in
 int WaitSem(int sem, key_t sem_key) {
