@@ -6,40 +6,89 @@
 #include<stdio.h>
 #include<sys/ipc.h>
 #include<sys/shm.h>
-#include<errno.h>
 #include<unistd.h>
 #include <sys/sem.h>
+#include <cstdlib>
+#include <ctime>
+#include <cstring>
+#include <iostream>
+#include <random>
 
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
 key_t FULL_KEY = 163;//ftok("fullsem",63);
 #define MAX_BUFF 1
 
-int binary_sem = semget(BIN_SEM_KEY, 1, IPC_CREAT | 0666);
-int empty_sem = semget(EMPTY_KEY, MAX_BUFF, IPC_CREAT | 0666);
-int full_sem = semget(FULL_KEY, 0, IPC_CREAT | IPC_EXCL | 0666);
+int binary_sem ;
+int empty_sem;
+int full_sem ;
+int read_idx,written_idx;
 
 typedef struct shmseg {
-    int price = 1;
-    char name[10]{};
+    double price ;
+    char name[10];
+    bool isUpdated=true;
 } ProductPrice;
 
-void PRODUCE(ProductPrice *shmp, int sleep_time);
+class Generator{
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution;
+public:
+    Generator(double mean, double stddev): distribution(mean, stddev){}
+    double get(){
+        generator = std::default_random_engine(time(0));
+
+        return distribution(generator);
+
+    }
+};
+
+timespec timespec{};
+
+void PRODUCE(ProductPrice *shmp,int sleep_time,char* product_name,double mean,double deviation,int size);
 
 int WaitSem(int sem, key_t sem_key);
 
 int SignalSem(int sem);
 
+double GeneratePrice(double mean, double deviation);
+
 int main(int argc, char **argv) {
     printf("PRODUCER LAUNCHED...\n");
-    key_t shm_key = 0x1233333; //ftok("shmfile",65);
+    union semun
+    {
+        int val;
+        struct semid_ds *buf;
+        ushort array [1];
+    } sem_attr;
 
-    int shmid = 0, sleep_time;
+    key_t shm_key = 0x123333; //ftok("shmfile",65);
+    int shmid = 0, sleep_time,size;
+    char* product_name;
     ProductPrice *shmp;
+    read_idx = written_idx = 0;
+
 
     //TODO: write code to handle arguments here ie the product name, price and sleep interval
+    sleep_time = atoi(argv[4]); product_name = argv[1];
+    double mean =  atof(argv[2]),deviation =  atof(argv[3]);
+    size = atoi(argv[5]);
+    ProductPrice buff_array[size];
 
-    shmid = shmget(shm_key, sizeof(ProductPrice), 0644 | IPC_CREAT);
+    printf("%d %s %d\n",sleep_time,product_name,size);
+    shmid = shmget(shm_key, sizeof(int), IPC_CREAT|0644);
+    if (shmid == -1) {
+        perror("Shared memory");
+        return 1;
+    }
+    written_idx= *(int *) shmat(shmid, nullptr, 0);
+    if (&written_idx == (void *) -1) {
+        perror("Shared memory attach");
+        return 1;
+    }
+
+
+    shmid = shmget(shm_key, sizeof(shmp)*size, IPC_CREAT|0644);
     if (shmid == -1) {
         perror("Shared memory");
         return 1;
@@ -50,17 +99,49 @@ int main(int argc, char **argv) {
         perror("Shared memory attach");
         return 1;
     }
-    //shmp->price = 1;
-    PRODUCE(shmp, 2);
+
+    if((binary_sem = semget(BIN_SEM_KEY, 1, IPC_CREAT | 0666)) == -1){
+        perror("Binary Sem Creation: ");
+        exit(1);
+    }
+    sem_attr.val = 1;        // unlocked
+    if (semctl (binary_sem, 0, SETVAL, sem_attr) == -1) {
+        perror ("binary sem SETVAL"); exit (1);
+    }
+
+    if((empty_sem = semget(EMPTY_KEY, 1, IPC_CREAT | 0666))==-1){
+        perror("Empty Sem Creation: ");
+        exit(1);
+    }
+    sem_attr.val = size;        // unlocked
+    if (semctl (empty_sem, 0, SETVAL, sem_attr) == -1) {
+        perror ("empty sem SETVAL"); exit (1);
+    }
+
+    if((full_sem = semget(FULL_KEY, 1, IPC_CREAT  | 0666))==-1){
+        perror("Full Sem Creation: ");
+        _exit(1);
+    }
+    sem_attr.val = 0;        // unlocked
+    if (semctl (full_sem, 0, SETVAL, sem_attr) == -1) {
+        perror ("full sem SETVAL"); exit (1);
+    }
+    PRODUCE(shmp, sleep_time,product_name,mean,deviation,size);
 
 }
 
-void PRODUCE(ProductPrice *shmp, int sleep_T) {
+void PRODUCE(ProductPrice *aShmp,int sleep_T,char* product_N,double mean,double deviation,int size) {
     int sleep_time = sleep_T;
-    int retval;
-
+    int retval,offset = written_idx;
+    ProductPrice * shmp = aShmp;
+    time_t timetoday;
+    time(&timetoday);
+    double price = 0.0;
+    char* s;
     while (true) {
-        //binary semaphore to lock the shared memory
+        //price = GeneratePrice(mean,deviation);
+        Generator generator(mean,deviation);
+        price = generator.get();
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
@@ -73,8 +154,14 @@ void PRODUCE(ProductPrice *shmp, int sleep_T) {
         }
 
         //TODO: place here code to generate number from normal distribution
-        shmp->price += 1;
+        if(shmp->isUpdated)
+        {
 
+        
+        shmp->price = price;
+        strcpy(shmp->name,product_N) ;
+        shmp->isUpdated = false;
+        }
         retval = SignalSem(binary_sem);
         if (retval == -1) {
             perror("BINARY Semaphore Locked\n");
@@ -85,42 +172,31 @@ void PRODUCE(ProductPrice *shmp, int sleep_T) {
             perror("FULL Semaphore Locked\n");
             return;
         }
+        written_idx++;
+        written_idx = written_idx % size;
+        shmp=aShmp+(written_idx*sizeof(ProductPrice*));
         sleep(sleep_time);
         printf("out of sleep\n");
     }
 }
 
+double GeneratePrice(double mean, double deviation) {
+    std::default_random_engine generator;
+    std::normal_distribution<double> distribution(mean,deviation);
+    double number = distribution(generator);
+    return number;
+}
+
 //im getting in
 int WaitSem(int sem, key_t sem_key) {
-    struct sembuf sem_buf;
-    int retval, semnum;
+    struct sembuf sem_buf{};
+    sem_buf.sem_num = 0;
+    sem_buf.sem_flg = 0;
+    sem_buf.sem_op = -1;
+    int retval;
     int semaphore = sem;
-    union semun {
-        int val;
-        struct semid_ds *buf;
-        ushort *array;
-    } arg;
-    int sem_num= semctl(semaphore, 0, GETVAL, arg);
 
-    if (sem >= 0) {
-        printf("Trying to fetch binary semaphore on shared memory\n");
-        sem_buf.sem_op = 1;
-        sem_buf.sem_flg = 0;
-        sem_buf.sem_num = sem_num;
-        retval = semop(semaphore, &sem_buf, 1);
-    } else if (errno == EEXIST) {
-        int ready = 0;
-        printf("Already other process got the binary semaphore..waiting for resource\n");
-        semaphore = semget(sem_key, 1, 0);
-        sem_num= semctl(semaphore, 0, GETVAL, arg);
-        sem_buf.sem_num = sem_num;
-        sem_buf.sem_op = 0;
-        sem_buf.sem_flg = SEM_UNDO;
-        retval = semop(semaphore, &sem_buf, 1);
-    }
-    sem_buf.sem_num = sem_num;
-    sem_buf.sem_op = -1; /* Allocating the resources */
-    sem_buf.sem_flg = SEM_UNDO;
+     /* Allocating the resources */
     retval = semop(semaphore, &sem_buf, 1);
 
     return retval;
@@ -128,8 +204,9 @@ int WaitSem(int sem, key_t sem_key) {
 
 //im getting out
 int SignalSem(int sem) {
-    printf("Releasing the resource\n");
-    struct sembuf sem_buf;
+    struct sembuf sem_buf{};
+    sem_buf.sem_num = 0;
+    sem_buf.sem_flg = 0;
     sem_buf.sem_op = 1;
     int retval = semop(sem, &sem_buf, 1);
     return retval;
