@@ -13,11 +13,13 @@
 #include <cstring>
 #include <iostream>
 #include <random>
+#include <csignal>
 
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
 key_t FULL_KEY = 163;//ftok("fullsem",63);
-#define MAX_BUFF 1
+struct timespec timer{};
+std::time_t t = time(0);
 
 int binary_sem;
 int empty_sem;
@@ -29,10 +31,10 @@ typedef struct shmseg {
     char name[10];
 } ProductPrice;
 
-typedef struct shmidx{
+typedef struct shmidx {
     int index;
     bool notInitialized = true;
-}IndexStruct;
+} IndexStruct;
 
 class Generator {
     std::default_random_engine generator;
@@ -73,18 +75,26 @@ int SignalSem(int sem) {
     return retval;
 }
 
-void PRODUCE(IndexStruct * aShidx,ProductPrice *aShmp, int sleep_T, char *product_N, double mean, double deviation, int size) {
-    int sleep_time = sleep_T;
+void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *product_N, double mean, double deviation,
+             int size) {
     int retval;
     ProductPrice *shmp = aShmp;
-    IndexStruct * shidx = aShidx;
-    time_t timetoday;
-    time(&timetoday);
+    IndexStruct *shidx = aShidx;
     double price = 0.0;
-    char *s;
+    time_t tim;
+    struct tm curr;
+
+
+
     while (true) {
         Generator generator(mean, deviation);
         price = generator.get();
+        tim = time(nullptr);
+        tm curr = *localtime(&tim);
+        std::cerr  <<"["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
+                curr.tm_year + 1900 <<"] "<< product_N << ": generating a new value " << price << std::endl;
+        std::cerr << "[implement timer please] " << product_N << ": trying to get mutex on shared buffer" << std::endl;
+
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
@@ -95,17 +105,16 @@ void PRODUCE(IndexStruct * aShidx,ProductPrice *aShmp, int sleep_T, char *produc
             perror("BINARY Semaphore Locked: ");
             return;
         }
-
-
+        std::cerr << "[implement timer please] " << product_N << ": placing " << price << " on shared buffer"
+                  << std::endl;
         shmp->price = price;
         strcpy(shmp->name, product_N);
-        if(shidx->notInitialized){
+        if (shidx->notInitialized) {
             shidx->index = 0;
             shidx->notInitialized = false;
-        }
-        else{
+        } else {
             shidx->index++;
-            shidx->index =  shidx->index % size;
+            shidx->index = shidx->index % size;
         }
 
         retval = SignalSem(binary_sem);
@@ -120,11 +129,12 @@ void PRODUCE(IndexStruct * aShidx,ProductPrice *aShmp, int sleep_T, char *produc
         }
 
         shmp = aShmp + (shidx->index * sizeof(ProductPrice *));
-        sleep(sleep_time);
-        printf("out of sleep\n");
+        std::cerr << "[implement timer please] " << product_N << " :sleeping for " << sleep_T << " s" << std::endl;
+
+        sleep(sleep_T);
+        //printf("out of sleep\n");
     }
 }
-
 
 int main(int argc, char **argv) {
     printf("PRODUCER LAUNCHED...\n");
@@ -206,7 +216,7 @@ int main(int argc, char **argv) {
         perror("full sem SETVAL");
         exit(1);
     }
-    PRODUCE(idx,shmp, sleep_time, product_name, mean, deviation, size);
+    PRODUCE(idx, shmp, sleep_time, product_name, mean, deviation, size);
 
 }
 
