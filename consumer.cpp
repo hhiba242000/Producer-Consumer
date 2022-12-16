@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <cstring>
 #include <map>
+#include <csignal>
 
 std::string commodities[] = {"ALUMINIUM", "COPPER", "COTTON", "CRUDEOIL", "GOLD", "LEAD", "MENTHAOIL", "NATURALGAS",
                              "NICKEL", "SILVER", "ZINC"};
@@ -24,7 +25,7 @@ std::string commodities[] = {"ALUMINIUM", "COPPER", "COTTON", "CRUDEOIL", "GOLD"
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
 key_t FULL_KEY = 163;//ftok("fullsem",63);
-#define MAX_BUFF 1
+bool infinite_loop = true;
 
 int binary_sem;
 int empty_sem;
@@ -40,12 +41,16 @@ typedef struct shmseg {
 
 timespec timespec{};
 
-void CONSUME(ProductPrice *shmp, int sleep_time);
+void CONSUME(int shmid,ProductPrice *shmp, int sleep_time);
 
 int WaitSem(int sem, key_t sem_key);
 
 int SignalSem(int sem);
 
+void handler(int sig){
+    printf("im out\n");
+    infinite_loop = false;
+}
 void PrintTable(ProductPrice *pShmseg);
 
 void InsertTable(ProductPrice *pShmseg);
@@ -110,11 +115,13 @@ int main(int argc, char **argv) {
         perror("full sem SETVAL");
         exit(1);
     }
-    CONSUME(shmp, size);
+    CONSUME(shmid,shmp, size);
 
 }
 
-void CONSUME(ProductPrice *aShmp, int size) {
+void CONSUME(int shmid,ProductPrice *aShmp, int size) {
+    signal(SIGINT,handler);
+
     int retval;
     time_t timetoday;
     time(&timetoday);
@@ -122,7 +129,8 @@ void CONSUME(ProductPrice *aShmp, int size) {
     ProductPrice *shmp = aShmp;
     ProductPrice *temp = new ProductPrice;
 
-    while (true) {
+    while (infinite_loop) {
+
         retval = WaitSem(full_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
@@ -161,6 +169,8 @@ void CONSUME(ProductPrice *aShmp, int size) {
 
 
     }
+    printf("im detaching\n");
+    shmctl(shmid,IPC_RMID,NULL);
 }
 
 void PrintTable() {

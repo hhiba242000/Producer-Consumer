@@ -15,6 +15,7 @@
 #include <random>
 #include <csignal>
 
+bool infinite_loop = true;
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
 key_t FULL_KEY = 163;//ftok("fullsem",63);
@@ -75,8 +76,15 @@ int SignalSem(int sem) {
     return retval;
 }
 
+void handler(int sig){
+    printf("im out\n");
+    infinite_loop = false;
+}
+
 void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *product_N, double mean, double deviation,
-             int size) {
+             int size){
+    signal(SIGINT,handler);
+
     int retval;
     ProductPrice *shmp = aShmp;
     IndexStruct *shidx = aShidx;
@@ -86,7 +94,7 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
 
 
 
-    while (true) {
+    while (infinite_loop) {
         Generator generator(mean, deviation);
         price = generator.get();
         tim = time(nullptr);
@@ -134,7 +142,11 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
         sleep(sleep_T);
         //printf("out of sleep\n");
     }
+    printf("im detaching\n");
+    shmdt(aShmp);
+    shmdt(aShidx);
 }
+
 
 int main(int argc, char **argv) {
     printf("PRODUCER LAUNCHED...\n");
