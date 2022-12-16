@@ -34,6 +34,7 @@ std::unordered_map<std::string, std::vector<double> *> readings_map;
 typedef struct shmseg {
     double price;
     char name[10];
+    bool isUpdated=true; 
 } ProductPrice;
 
 timespec timespec{};
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
         ushort array[1];
     } sem_attr;
 
-    key_t shm_key = 0x1233333; //ftok("shmfile",65);
+    key_t shm_key = 0x123333; //ftok("shmfile",65);
     int shmid = 0, sleep_time, size;
     read_idx = 0;
     char *product_name;
@@ -130,7 +131,7 @@ void CONSUME(ProductPrice *aShmp, int size) {
         //TODO: place here code to generate number from normal distribution
         strcpy(temp->name, shmp->name);
         temp->price = shmp->price;
-
+        shmp->isUpdated = true;
 
         retval = SignalSem(binary_sem);
         if (retval == -1) {

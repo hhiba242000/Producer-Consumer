@@ -27,6 +27,7 @@ int read_idx,written_idx;
 typedef struct shmseg {
     double price ;
     char name[10];
+    bool isUpdated=true;
 } ProductPrice;
 
 class Generator{
@@ -61,7 +62,7 @@ int main(int argc, char **argv) {
         ushort array [1];
     } sem_attr;
 
-    key_t shm_key = 0x1233333; //ftok("shmfile",65);
+    key_t shm_key = 0x123333; //ftok("shmfile",65);
     int shmid = 0, sleep_time,size;
     char* product_name;
     ProductPrice *shmp;
@@ -75,6 +76,17 @@ int main(int argc, char **argv) {
     ProductPrice buff_array[size];
 
     printf("%d %s %d\n",sleep_time,product_name,size);
+    shmid = shmget(shm_key, sizeof(int), IPC_CREAT|0644);
+    if (shmid == -1) {
+        perror("Shared memory");
+        return 1;
+    }
+    written_idx= *(int *) shmat(shmid, nullptr, 0);
+    if (&written_idx == (void *) -1) {
+        perror("Shared memory attach");
+        return 1;
+    }
+
 
     shmid = shmget(shm_key, sizeof(shmp)*size, IPC_CREAT|0644);
     if (shmid == -1) {
@@ -142,9 +154,14 @@ void PRODUCE(ProductPrice *aShmp,int sleep_T,char* product_N,double mean,double 
         }
 
         //TODO: place here code to generate number from normal distribution
+        if(shmp->isUpdated)
+        {
+
+        
         shmp->price = price;
         strcpy(shmp->name,product_N) ;
-
+        shmp->isUpdated = false;
+        }
         retval = SignalSem(binary_sem);
         if (retval == -1) {
             perror("BINARY Semaphore Locked\n");
