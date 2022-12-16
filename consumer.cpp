@@ -213,13 +213,13 @@ void PrintTable() {
         // TODO: Check the previous reading for increment or decrement
         //red 31  green 32   blue 34
         if (flag == 2) {
-                printf("| %-13s| \033[0;32m%7.2f↑\033[0m|  \033[0;32m%7.2f↑\033[0m  |\n", name.c_str(), price,
+                printf("| %-14s| \033[0;32m%-7.2f↑\033[0m|  \033[0;32m%-7.2f↑\033[0m  |\n", name.c_str(), price,
                        avg);
         } else if (flag == 1) {
-                printf("| %-13s\t| \033[0;31m%7.2f↓\033[0m|  \033[0;31m%7.2f↓\033[0m  |\n", name.c_str(), price,
+                printf("| %-14s| \033[0;31m%-7.2f↓\033[0m|  \033[0;31m%-7.2f↓\033[0m  |\n", name.c_str(), price,
                        avg);
         } else {
-                printf("| %-13s\t| \033[0;34m%7.2f\033[0m|  \033[0;34m%7.2f\033[0m  |\n", name.c_str(), price,
+                printf("| %-14s|  \033[0;34m%-7.2f\033[0m|   \033[0;34m%-7.2f\033[0m  |\n", name.c_str(), price,
                        avg);
         }
         printf("+--------------------------------------+\n");

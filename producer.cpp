@@ -95,13 +95,24 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
 
 
     while (infinite_loop) {
+        struct timespec ms;
+        tim = time(nullptr);
+        tm curr = *localtime(&tim);
+        clock_gettime(CLOCK_REALTIME,&ms);
+        long ms_time = (ms.tv_nsec %10000000);
+        int ms_int= (int)ms_time/10000;
+        std::cerr  <<"["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
+        curr.tm_year + 1900 <<"] "<< product_N << ": generating a new value " << price << std::endl;
+ 
         Generator generator(mean, deviation);
         price = generator.get();
         tim = time(nullptr);
-        tm curr = *localtime(&tim);
-        std::cerr  <<"["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
-                curr.tm_year + 1900 <<"] "<< product_N << ": generating a new value " << price << std::endl;
-        std::cerr << "[implement timer please] " << product_N << ": trying to get mutex on shared buffer" << std::endl;
+        curr = *localtime(&tim);
+        clock_gettime(CLOCK_REALTIME,&ms);
+        ms_time = (ms.tv_nsec%10000000);
+        ms_int= (int)ms_time/10000;
+        std::cerr << "["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
+        curr.tm_year + 1900 <<"] "<< product_N << ": trying to get mutex on shared buffer" << std::endl;
 
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
@@ -113,7 +124,14 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
             perror("BINARY Semaphore Locked: ");
             return;
         }
-        std::cerr << "[implement timer please] " << product_N << ": placing " << price << " on shared buffer"
+        tim = time(nullptr);
+        curr = *localtime(&tim);
+        clock_gettime(CLOCK_REALTIME,&ms);
+        ms_time = (ms.tv_nsec%10000000);
+        ms_int= (int)ms_time/10000;
+        
+        std::cerr << "["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
+        curr.tm_year + 1900 <<"] " << product_N << ": placing " << price << " on shared buffer"
                   << std::endl;
         shmp->price = price;
         strcpy(shmp->name, product_N);
@@ -137,7 +155,13 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
         }
 
         shmp = aShmp + (shidx->index * sizeof(ProductPrice *));
-        std::cerr << "[implement timer please] " << product_N << " :sleeping for " << sleep_T << " s" << std::endl;
+        tim = time(nullptr);
+        curr = *localtime(&tim);
+        clock_gettime(CLOCK_REALTIME,&ms);
+        ms_time = (ms.tv_nsec%10000000);
+        ms_int= (int)ms_time/10000;        
+        std::cerr << "["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
+        curr.tm_year + 1900 <<"] " << product_N << " :sleeping for " << sleep_T << " s" << std::endl;
 
         sleep(sleep_T);
         //printf("out of sleep\n");
