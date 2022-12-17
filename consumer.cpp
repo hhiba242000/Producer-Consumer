@@ -170,7 +170,7 @@ void CONSUME(int shmid,ProductPrice *aShmp, int size) {
 
     }
     printf("im detaching\n");
-    shmctl(shmid,IPC_RMID,NULL);
+    shmdt(aShmp);
 }
 
 void PrintTable() {

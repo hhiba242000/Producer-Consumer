@@ -14,13 +14,13 @@
 #include <iostream>
 #include <random>
 #include <csignal>
+#include <unistd.h>
 
 bool infinite_loop = true;
 key_t BIN_SEM_KEY = 160;// ftok("binarysem",60);
 key_t EMPTY_KEY = 164;//ftok("emptysem",64);
 key_t FULL_KEY = 163;//ftok("fullsem",63);
 struct timespec timer{};
-std::time_t t = time(0);
 
 int binary_sem;
 int empty_sem;
@@ -76,14 +76,14 @@ int SignalSem(int sem) {
     return retval;
 }
 
-void handler(int sig){
+void handler(int sig) {
     printf("im out\n");
     infinite_loop = false;
 }
 
 void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *product_N, double mean, double deviation,
-             int size){
-    signal(SIGINT,handler);
+             int size) {
+    signal(SIGINT, handler);
 
     int retval;
     ProductPrice *shmp = aShmp;
@@ -93,28 +93,29 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
     struct tm curr;
 
 
-
     while (infinite_loop) {
         Generator generator(mean, deviation);
-        price = generator.get();    
-            
+        price = generator.get();
+
         struct timespec ms;
         tim = time(nullptr);
         tm curr = *localtime(&tim);
-        clock_gettime(CLOCK_REALTIME,&ms);
-        long ms_time = (ms.tv_nsec %10000000);
-        int ms_int= (int)ms_time/10000;
-        std::cerr  <<"["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
-        curr.tm_year + 1900 <<"] "<< product_N << ": generating a new value " << price << std::endl;
- 
+        clock_gettime(CLOCK_REALTIME, &ms);
+        long ms_time = (ms.tv_nsec % 10000000);
+        int ms_int = (int) ms_time / 10000;
+        std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
+                  << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
+                  curr.tm_year + 1900 << "] " << product_N << ": generating a new value " << price << std::endl;
+
 
         tim = time(nullptr);
         curr = *localtime(&tim);
-        clock_gettime(CLOCK_REALTIME,&ms);
-        ms_time = (ms.tv_nsec%10000000);
-        ms_int= (int)ms_time/10000;
-        std::cerr << "["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
-        curr.tm_year + 1900 <<"] "<< product_N << ": trying to get mutex on shared buffer" << std::endl;
+        clock_gettime(CLOCK_REALTIME, &ms);
+        ms_time = (ms.tv_nsec % 10000000);
+        ms_int = (int) ms_time / 10000;
+        std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
+                  << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
+                  curr.tm_year + 1900 << "] " << product_N << ": trying to get mutex on shared buffer" << std::endl;
 
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
@@ -128,12 +129,13 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
         }
         tim = time(nullptr);
         curr = *localtime(&tim);
-        clock_gettime(CLOCK_REALTIME,&ms);
-        ms_time = (ms.tv_nsec%10000000);
-        ms_int= (int)ms_time/10000;
-        
-        std::cerr << "["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
-        curr.tm_year + 1900 <<"] " << product_N << ": placing " << price << " on shared buffer"
+        clock_gettime(CLOCK_REALTIME, &ms);
+        ms_time = (ms.tv_nsec % 10000000);
+        ms_int = (int) ms_time / 10000;
+
+        std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
+                  << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
+                  curr.tm_year + 1900 << "] " << product_N << ": placing " << price << " on shared buffer"
                   << std::endl;
         shmp->price = price;
         strcpy(shmp->name, product_N);
@@ -159,16 +161,16 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
         shmp = aShmp + (shidx->index * sizeof(ProductPrice *));
         tim = time(nullptr);
         curr = *localtime(&tim);
-        clock_gettime(CLOCK_REALTIME,&ms);
-        ms_time = (ms.tv_nsec%10000000);
-        ms_int= (int)ms_time/10000;        
-        std::cerr << "["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
-        curr.tm_year + 1900 <<"] " << product_N << " :sleeping for " << sleep_T << " s" << std::endl;
+        clock_gettime(CLOCK_REALTIME, &ms);
+        ms_time = (ms.tv_nsec % 10000000);
+        ms_int = (int) ms_time / 10000;
+        std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
+                  << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
+                  curr.tm_year + 1900 << "] " << product_N << " :sleeping for " << sleep_T << " s" << std::endl;
 
-        sleep(sleep_T);
-        //printf("out of sleep\n");
+        usleep(sleep_T * 1000);
     }
-    printf("im detaching\n");
+    printf("Producer detaching\n");
     shmdt(aShmp);
     shmdt(aShidx);
 }
