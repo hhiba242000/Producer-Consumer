@@ -95,6 +95,9 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
 
 
     while (infinite_loop) {
+        Generator generator(mean, deviation);
+        price = generator.get();    
+            
         struct timespec ms;
         tim = time(nullptr);
         tm curr = *localtime(&tim);
@@ -104,8 +107,7 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
         std::cerr  <<"["<<curr.tm_hour<<":"<< curr.tm_min<<":"<< curr.tm_sec<<"."<<ms_int<<" "<< curr.tm_mday<<"/"<< curr.tm_mon + 1<<"/"<<
         curr.tm_year + 1900 <<"] "<< product_N << ": generating a new value " << price << std::endl;
  
-        Generator generator(mean, deviation);
-        price = generator.get();
+
         tim = time(nullptr);
         curr = *localtime(&tim);
         clock_gettime(CLOCK_REALTIME,&ms);

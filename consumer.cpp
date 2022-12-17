@@ -158,7 +158,7 @@ void CONSUME(int shmid,ProductPrice *aShmp, int size) {
 
         printf("\e[1;1H\e[2J");
         printf("+--------------------------------------+\n");
-        printf("| Currency\t|  Price  |  AvgPrice |\n");
+        printf("| Currency\t|  Price  |  AvgPrice  |\n");
         printf("+--------------------------------------+\n");
         InsertTable(temp);
         PrintTable();
