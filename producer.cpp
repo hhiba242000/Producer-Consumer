@@ -1,5 +1,5 @@
 // PRODUCER FILE
-// Created by hayam on 12/7/22.
+// Created by hayam 6207 and adel 6848 on 12/7/22.
 //
 
 
@@ -51,7 +51,7 @@ public:
     }
 };
 
-//im getting in
+// semaphore wait function
 int WaitSem(int sem, key_t sem_key) {
     struct sembuf sem_buf{};
     sem_buf.sem_num = 0;
@@ -66,7 +66,7 @@ int WaitSem(int sem, key_t sem_key) {
     return retval;
 }
 
-//im getting out
+// semaphore signal function
 int SignalSem(int sem) {
     struct sembuf sem_buf{};
     sem_buf.sem_num = 0;
@@ -75,7 +75,7 @@ int SignalSem(int sem) {
     int retval = semop(sem, &sem_buf, 1);
     return retval;
 }
-
+// appropriately handle exit signal by intercepting it.
 void handler(int sig) {
     printf("im out\n");
     infinite_loop = false;
@@ -83,6 +83,8 @@ void handler(int sig) {
 
 void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *product_N, double mean, double deviation,
              int size) {
+    
+    // Register the signal handler for SIGINT
     signal(SIGINT, handler);
 
     int retval;
@@ -92,41 +94,49 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
     time_t tim;
     struct tm curr;
 
-
+    // Loop infinitely until the user presses Ctrl+C
     while (infinite_loop) {
+        // New price generation according to normal distribution
         Generator generator(mean, deviation);
         price = generator.get();
 
+        // Time stamp code
         struct timespec ms;
         tim = time(nullptr);
         tm curr = *localtime(&tim);
         clock_gettime(CLOCK_REALTIME, &ms);
         long ms_time = (ms.tv_nsec % 10000000);
         int ms_int = (int) ms_time / 10000;
+
         std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
                   << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
                   curr.tm_year + 1900 << "] " << product_N << ": generating a new value " << price << std::endl;
 
-
+        // Time stamp code
         tim = time(nullptr);
         curr = *localtime(&tim);
         clock_gettime(CLOCK_REALTIME, &ms);
         ms_time = (ms.tv_nsec % 10000000);
         ms_int = (int) ms_time / 10000;
+
         std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
                   << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
                   curr.tm_year + 1900 << "] " << product_N << ": trying to get mutex on shared buffer" << std::endl;
-
+        
+        // Wait on empty semaphore
         retval = WaitSem(empty_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
             return;
         }
+
+        // Wait on main binary semaphore
         retval = WaitSem(binary_sem, BIN_SEM_KEY);
         if (retval == -1) {
             perror("BINARY Semaphore Locked: ");
             return;
         }
+        // Time stamp code
         tim = time(nullptr);
         curr = *localtime(&tim);
         clock_gettime(CLOCK_REALTIME, &ms);
@@ -137,8 +147,12 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
                   << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
                   curr.tm_year + 1900 << "] " << product_N << ": placing " << price << " on shared buffer"
                   << std::endl;
+        // Place the new price on the shared buffer
+
         shmp->price = price;
         strcpy(shmp->name, product_N);
+
+        // Check Initialization and Update the index
         if (shidx->notInitialized) {
             shidx->index = 0;
             shidx->notInitialized = false;
@@ -146,19 +160,22 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
             shidx->index++;
             shidx->index = shidx->index % size;
         }
-
+        // Signal the main binary semaphore
         retval = SignalSem(binary_sem);
         if (retval == -1) {
             perror("BINARY Semaphore Locked\n");
             return;
         }
+        // Signal the full semaphore
         retval = SignalSem(full_sem);
         if (retval == -1) {
             perror("FULL Semaphore Locked\n");
             return;
         }
-
+        // Update the shared memory pointer
         shmp = aShmp + (shidx->index * sizeof(ProductPrice *));
+        
+        // Time stamp code
         tim = time(nullptr);
         curr = *localtime(&tim);
         clock_gettime(CLOCK_REALTIME, &ms);
@@ -166,11 +183,15 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
         ms_int = (int) ms_time / 10000;
         std::cerr << "[" << curr.tm_hour << ":" << curr.tm_min << ":" << curr.tm_sec << "." << ms_int << " "
                   << curr.tm_mday << "/" << curr.tm_mon + 1 << "/" <<
-                  curr.tm_year + 1900 << "] " << product_N << " :sleeping for " << sleep_T << " s" << std::endl;
-
+                  curr.tm_year + 1900 << "] " << product_N << " :sleeping for " << sleep_T << " ms" << std::endl;
+        
+        // Sleep for the user specified time
         usleep(sleep_T * 1000);
     }
+
+    // Detach from the shared memory after the user presses Ctrl+C
     printf("Producer detaching\n");
+    aShidx->notInitialized = true;
     shmdt(aShmp);
     shmdt(aShidx);
 }
@@ -178,12 +199,15 @@ void PRODUCE(IndexStruct *aShidx, ProductPrice *aShmp, int sleep_T, char *produc
 
 int main(int argc, char **argv) {
     printf("PRODUCER LAUNCHED...\n");
+    
+    // union for semctl system call to initialize the semaphores 
     union semun {
         int val;
         struct semid_ds *buf;
         ushort array[1];
     } sem_attr;
 
+    // keys for the semaphores using ftok
     key_t shm_key = 0x123333;
     key_t shm_index = 0x125454;//ftok("shmfile",65);
     int shmid, sleep_time, size;
@@ -193,16 +217,17 @@ int main(int argc, char **argv) {
     read_idx = written_idx = 0;
 
 
-    //TODO: write code to handle arguments here ie the product name, price and sleep interval
+    // code to handle arguments here ie the product name, price , sleep interval and buffer size
     sleep_time = atoi(argv[4]);
     product_name = argv[1];
     double mean = atof(argv[2]), deviation = atof(argv[3]);
     size = atoi(argv[5]);
 
-
+    // print the arguments to the console
     printf("sleep time: %d\n product name: %s\n buffer size: %d\n mean:%lf \n deviation:%lf\n", sleep_time,
            product_name, size, mean, deviation);
 
+    // Create the shared memory for the index and the shared memory for the buffer.
     shmid = shmget(shm_index, sizeof(idx), IPC_CREAT | 0644);
     if (shmid == -1) {
         perror("Shared memory");
@@ -227,10 +252,13 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Create the semaphores for the producer and consumer processes 
+    // to use for synchronization and mutual exclusion 
     if ((binary_sem = semget(BIN_SEM_KEY, 1, IPC_CREAT | 0666)) == -1) {
         perror("Binary Sem Creation: ");
         exit(1);
     }
+    // Initialize the binary semaphore to 1
     sem_attr.val = 1;        // unlocked
     if (semctl(binary_sem, 0, SETVAL, sem_attr) == -1) {
         perror("binary sem SETVAL");
@@ -256,6 +284,7 @@ int main(int argc, char **argv) {
         perror("full sem SETVAL");
         exit(1);
     }
+    // call the infinite loop producer function.
     PRODUCE(idx, shmp, sleep_time, product_name, mean, deviation, size);
 
 }

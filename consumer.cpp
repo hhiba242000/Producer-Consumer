@@ -1,9 +1,7 @@
-// PRODUCER FILE
-// Created by hayam on 12/7/22.
+// CONSUMER FILE
+// Created by hayam 6207 and adel 6848 on 12/7/22.
 //
-//TODO: PRINT WITH COLORS AND ARROWS
-//TODO: PRINT LOG WITH NANOSEC PRECIS TIME
-//TODO: MAKE SURE NORMAL DISTRIBUTION IS CORRECTLY IMPLEMENTED
+
 
 #include<stdio.h>
 #include<sys/ipc.h>
@@ -19,6 +17,7 @@
 #include <map>
 #include <csignal>
 
+// the given commodities 
 std::string commodities[] = {"ALUMINIUM", "COPPER", "COTTON", "CRUDEOIL", "GOLD", "LEAD", "MENTHAOIL", "NATURALGAS",
                              "NICKEL", "SILVER", "ZINC"};
 
@@ -31,12 +30,13 @@ int binary_sem;
 int empty_sem;
 int full_sem;
 int read_idx;
+
+// a map data structure to store the readings of each commodity
 std::unordered_map<std::string, std::vector<double> *> readings_map;
 
 typedef struct shmseg {
     double price;
     char name[10];
-    bool isUpdated = true;
 } ProductPrice;
 
 timespec timespec{};
@@ -47,6 +47,7 @@ int WaitSem(int sem, key_t sem_key);
 
 int SignalSem(int sem);
 
+// signal handler for ctrl+c SIGINT
 void handler(int sig){
     printf("im out\n");
     infinite_loop = false;
@@ -59,21 +60,25 @@ void PrintTable();
 
 int main(int argc, char **argv) {
     printf("CONSUMER LAUNCHED...\n");
+    
+    // union for semctl() system call to initialize the semaphore
     union semun {
         int val;
         struct semid_ds *buf;
         ushort array[1];
     } sem_attr;
 
+    // shared memory key using ftok
     key_t shm_key = 0x123333; //ftok("shmfile",65);
     int shmid = 0, sleep_time, size;
     read_idx = 0;
     char *product_name;
     ProductPrice *shmp;
 
-    //TODO: write code to handle arguments here ie the product name, price and sleep interval
+    // Code to handle arguments here ie the product name, price and sleep interval
     size = atoi(argv[1]);
 
+    // create the shared memory segment 
     shmid = shmget(shm_key, sizeof(shmp) * size, 0644 | IPC_CREAT);
     if (shmid == -1) {
         perror("Shared memory");
@@ -86,16 +91,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // create the main binary semaphore
     if ((binary_sem = semget(BIN_SEM_KEY, 1, IPC_CREAT | 0666)) == -1) {
         perror("Binary Sem Creation: ");
         exit(1);
     }
+    // initialize the binary semaphore to 1
     sem_attr.val = 1;        // unlocked
     if (semctl(binary_sem, 0, SETVAL, sem_attr) == -1) {
         perror("binary sem SETVAL");
         exit(1);
     }
-
+    // create the empty semaphore
     if ((empty_sem = semget(EMPTY_KEY, 1, IPC_CREAT | 0666)) == -1) {
         perror("Empty Sem Creation: ");
         exit(1);
@@ -105,7 +112,7 @@ int main(int argc, char **argv) {
         perror("empty sem SETVAL");
         exit(1);
     }
-
+    // create the full semaphore
     if ((full_sem = semget(FULL_KEY, 1, IPC_CREAT | 0666)) == -1) {
         perror("Full Sem Creation: ");
         _exit(1);
@@ -115,11 +122,13 @@ int main(int argc, char **argv) {
         perror("full sem SETVAL");
         exit(1);
     }
+    // call the infinite consume function
     CONSUME(shmid,shmp, size);
 
 }
 
 void CONSUME(int shmid,ProductPrice *aShmp, int size) {
+    // register the signal handler for SIGINT
     signal(SIGINT,handler);
 
     int retval;
@@ -129,19 +138,22 @@ void CONSUME(int shmid,ProductPrice *aShmp, int size) {
     ProductPrice *shmp = aShmp;
     ProductPrice *temp = new ProductPrice;
 
+    // loop infinitely until the user presses ctrl+c
     while (infinite_loop) {
-
+        // wait for the full semaphore to be unlocked
         retval = WaitSem(full_sem, EMPTY_KEY);
         if (retval == -1) {
             perror("EMPTY Semaphore Locked: ");
             return;
         }
+        // wait for the binary semaphore to be unlocked
         retval = WaitSem(binary_sem, BIN_SEM_KEY);
         if (retval == -1) {
             perror("BINARY Semaphore Locked: ");
             return;
         }
-
+        
+        // copy data from the shared memory to the local variable
         strcpy(temp->name, shmp->name);
         temp->price = shmp->price;
 
@@ -160,15 +172,22 @@ void CONSUME(int shmid,ProductPrice *aShmp, int size) {
         printf("+--------------------------------------+\n");
         printf("| Currency\t|  Price  |  AvgPrice  |\n");
         printf("+--------------------------------------+\n");
+        
+        // insert the data into the map
         InsertTable(temp);
+
+        // print the table
         PrintTable();
 
+        // increment the read index
         read_idx++;
         read_idx = read_idx % size;
+
+        // increment the shared memory pointer
         shmp = aShmp + (read_idx * sizeof(ProductPrice *));
-
-
     }
+
+    // detach the shared memory after the user presses ctrl+c
     printf("im detaching\n");
     shmdt(aShmp);
 }
@@ -181,20 +200,28 @@ void PrintTable() {
     double price , avg;
     for (auto s: commodities) {
         name= s;
+        
+        // check if the commodity is present in the map
         if (readings_map.find(s.c_str()) == readings_map.end()) {
         price = 0.0; avg = 0.0;
         flag=0;
         }
         else{
+            
+            // get the vector of prices for the commodity
             readings = readings_map.at(s);
             sum = 0.0;
             flag= 0,total = 0.0;
             total = readings->size();
             price = readings->at(total-1);
+            
+            // calculate the average price
             for (int i = 0; i < total; i++) {
                 sum += readings->at(i);
             }
             avg = sum / total;
+
+            // check if the price is increasing or decreasing
             if (readings->size() == 1) {
                 flag = 2;
 
@@ -210,7 +237,7 @@ void PrintTable() {
         }
 
 
-        // TODO: Check the previous reading for increment or decrement
+        // print the table with the appropriate color
         //red 31  green 32   blue 34
         if (flag == 2) {
                 printf("| %-14s| \033[0;32m%-7.2f↑\033[0m|  \033[0;32m%-7.2f↑\033[0m  |\n", name.c_str(), price,
@@ -227,7 +254,11 @@ void PrintTable() {
 }
 
 void InsertTable(ProductPrice *pShmseg) {
+   
+    // insert the data into the map
     std::vector<double> *readings;
+
+    // check if the commodity is present in the map
     if (readings_map.find(pShmseg->name) == readings_map.end()) {
         readings = new std::vector<double>;
         readings->emplace_back(pShmseg->price);
@@ -236,12 +267,14 @@ void InsertTable(ProductPrice *pShmseg) {
         readings = readings_map.at(pShmseg->name);
         readings->emplace_back(pShmseg->price);
     }
+    // keep the most recent 5 prices
+    // current price, 4 previous prices
     if (readings->size() > 5)
         readings->erase(readings->begin());
 }
 
 
-//im getting in
+// semaphore wait function
 int WaitSem(int sem, key_t sem_key) {
     struct sembuf sem_buf{};
     sem_buf.sem_num = 0;
@@ -256,7 +289,7 @@ int WaitSem(int sem, key_t sem_key) {
     return retval;
 }
 
-//im getting out
+// semaphore signal function
 int SignalSem(int sem) {
     struct sembuf sem_buf{};
     sem_buf.sem_num = 0;
